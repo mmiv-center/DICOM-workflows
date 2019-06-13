@@ -31,6 +31,8 @@ end
 
 #### Writing a series of DICOM files to disk
 
+In order to get a unique new image series we want to keep the study instance UID (assigns our new series to the existing study).
+
 ```
 %% sort the slices by instance number to get them into the righ order
 [dummy sortindx] = sort(instancenumbervec);
@@ -65,7 +67,7 @@ Writing out color encoded DICOM images (cannot be read by all workstations, Osir
 outputdir = sprintf('%s',outdir);
 % fname = sprintf('%s/volDV_RGB.mgz',outdir);
 dicomdir = dicomsT0;
-tag = 'MMIL T1 + DV';
+tag = 'MMIV T1 + DV';
 SeriesNumber = 2000;
 Mreg = M_hatl_to_MPR;
 
