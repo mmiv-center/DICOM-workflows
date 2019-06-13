@@ -124,8 +124,9 @@ val0 = hv(min(find(cdf_hc>.99)));
 im0 = max(0,min(1,T1_1_atl.imgs/val0));
 ```
 
-Something about alpha blending:
+In order to show a map (activity, segmented region etc.) overlayed on structural data you can use a simple alpha blending procedure. A linear weighting of the overlap map (in color) onto the gray-scale structural underlay map. The result of the procedure is a color image (RGB) that can be written as a DICOM using the above procedure.
 ```
+% weighting f between overlay and underlay 
 f = .6;
 volR(inds)  = colors(round(aseg_atl.imgs(inds))+1,1);
 a = max(0, min(1, real(smooth3d(volR, 5,5,5))));
