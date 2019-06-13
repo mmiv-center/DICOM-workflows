@@ -31,7 +31,7 @@ end
 
 #### Writing a series of DICOM files to disk
 
-In order to get a unique new image series we want to keep the study instance UID (assigns our new series to the existing study).
+In order to get a unique new image series we want to keep the study instance UID to have our new series be assigned to the existing study. But we want to create a new series instance UID to avoid creating a copy of our existing series. We also need to create new SOP instance UIDs, which are the identifiers that make each DICOM file unique. We will leave this to the dicomwrite.
 
 ```
 %% sort the slices by instance number to get them into the righ order
