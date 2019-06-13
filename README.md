@@ -116,7 +116,9 @@ end
 fprintf('\n%s - Finished T1 + DV\n',mfilename);
 ```
 
-Here is a bit that will calculate a good initial window level for the data
+Here is a bit that will calculate a good initial window level for the data. This is probably one of the most useful pieces of code for medical imaging. The idea is to use the proportion of body against background as a means to calculate two thresholds for setting the images brightness and contrast. This information can be added to the DICOM tags and DICOM aware display programs will be able to use this information for the initial display. If you write novel image information you should calculate this information.
+
+The calculation is parametrized by two thresholds as the proportion of low intensity pixel and the proportion of high intensity pixel. Usual values are 0.01 and 0.999. This varies by the body part and modality displayed. It is appropriate if the object of interest has intermediate intensities (not too bright such as in metal or contrast in vessels, and not too dark such as in the background).
 ```
 [hc hv] = hist(T1_1_atl.imgs(find(T1_1_atl.imgs>0)),1000);
 cdf_hc = cumsum(hc/sum(hc));
