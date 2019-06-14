@@ -144,3 +144,169 @@ volB(inds) = colors(round(aseg_atl.imgs(inds))+1,3);
 a = max(0, min(1, real(smooth3d(volB, 5,5,5))));
 volASEG_RGB(:,:,:,3) = f*a + (1-f)*im1(:,:,:,3);
 ```
+
+## Detecting the type of a scan
+
+Image sequences produce different contrast images. Some processing pipelines only work with a specific contrast distribution per tissue type and body region, and therefore DICOM series have to be filtered by type before processing. The problematic bit is that the sequence depends on a number of parameters and that therefore a concise description of the scanning sequences is difficult. Here an example of a dumb-method for detecting the type of the scan.
+
+```
+#!/bin/bash
+# enter each directory (assume one series per directory and classify the data)
+
+# limit output to one type by calling
+# FILTER=T1 ./classifyData.sh
+# FILTER=T2 ./classifyData.sh
+# FILTER=PD ./classifyData.sh
+
+## Detect the type of a DICOM image
+#
+#### Rule for T1, T2, and PD
+#
+#TE < TR
+#short TR: usually lower than 500ms, equal to the average T1
+#long TR: 2 times the short TR, usually greater than 1500ms
+#short TE: is usually lower than 30ms
+#long TE: is 3 times the short TE usually greater than 90ms
+#
+#T1: TR short 300-600ms
+#T1: TE short 10-30ms
+#T2: TR long: 2000ms
+#T2: TE long: 90-140ms
+#PD: TR long: 1000-3000ms
+#PD: TE short: 15ms
+#
+#Proton density-weighted: long TR and short TE
+#T1-weighted: short TR and short TE
+#T2-weighted: long TR and long TE
+#
+# This might be outside the scope: https://radiopaedia.org/articles/mri-sequence-parameters
+#
+
+dirs=()
+numFiles=()
+input=$1
+
+# filter for either T1, T2, or PD, or ALL
+t=${FILTER}
+if [ -z "$t" ]; then
+    t="ALL"
+fi
+
+if [ -z "${input}" ]; then
+    while IFS= read -r -d $'\0'; do
+	# how many files in this directory?
+	nfiles=$(find $REPLY -mindepth 1 -maxdepth 1 -type f -print | wc -l)
+	if [ ${nfiles} -ge 10 ]; then
+	    #echo "Classify this directory ($REPLY).. ${nfiles} files inside"
+	    dirs+=("$REPLY")
+	    numFiles+=($nfiles)
+	#else
+	    #echo "Ignore this directory ($REPLY).. less than 3 files ${nfiles}  inside"
+	fi
+    done < <(find . -type d -print0)
+else
+    nfiles=$(find "${input}" -mindepth 1 -maxdepth 1 -type f -print | wc -l)    
+    dirs+=("${input}")
+    numFiles+=($nfiles)
+fi
+
+classify () {
+    local run=$1
+    local numFiles=$2
+    local t=$3
+
+    # get the TE (echo time, 0018,0081) and TR (repetition time, 0018, 0080)
+    f=$(ls ${run}/* |head -1)
+    #echo "test file : \"$f\""
+    TI=$(dcmdump +P "0018,0082" "$f" | head -1 | cut -d"[" -f2 | cut -d"]" -f1 | head -1 | cut -d'.' -f1)
+    TE=$(dcmdump +P "0018,0081" "$f" | head -1 | cut -d"[" -f2 | cut -d"]" -f1 | head -1 | cut -d'.' -f1)
+    TR=$(dcmdump +P "0018,0080" "$f" | head -1 | cut -d"[" -f2 | cut -d"]" -f1 | head -1 | cut -d'.' -f1)
+    CO=$(dcmdump +P "0018,1048" "$f" | head -1 | cut -d"[" -f2 | cut -d"]" -f1 | head -1 | cut -d'.' -f1)
+    SEQUENCENAME=$(dcmdump +P "0018,0024" "$f" | head -1 | cut -d"[" -f2 | cut -d"]" -f1 | head -1 | cut -d'.' -f1)
+    if [[ $SEQUENCENAME == *"no value available"* ]]; then
+	SEQUENCENAME="no sequence name"
+    fi
+    if [[ "$TI" == *"no value available"* ]]; then
+	TI="no value"
+    fi
+    if [[ "$CO" == *"no value available"* ]]; then
+	CO="no contrast"
+    fi    
+    if [ -z "$CO" ]; then
+	CO="no contrast"
+    fi
+    if [ -z "$TI" ]; then
+	TI="no value"
+    fi
+    #echo "TE: $TE, TR: $TR"
+    if [ -z "$TR" ]; then
+	TR=-1
+	(>&2 echo "no TR in $f")
+    fi
+    if [ -z "$TE" ]; then
+	TE=-1
+	(>&2 echo "no TE in $f")
+    fi
+    
+    # small large TE, TR based on tissue properties in brain
+    TRshort=0
+    TRlong=0
+    TEshort=0
+    TElong=0
+    if [ ! "$TR" -eq "-1" -a "$TR" -le 600 ]; then
+	TRshort=1
+	#echo "TR short"
+    elif [ "$TR" -ge 600 ]; then
+	TRlong=1
+	#echo "TR long"
+    fi
+    if [ ! "$TE" -eq "-1" -a "$TE" -le 30 ]; then
+	TEshort=1
+	#echo "TE short"
+    elif [ "$TE" -ge 30 ]; then
+	TElong=1
+	#echo "TE long"
+    else
+	(>&2 echo "TE strange?")
+    fi
+    # weighted scan
+    T1=0
+    T2=0
+    PD=0
+    FL=0
+    if [ "${TEshort}" -eq 1 -a "${TRshort}" -eq 1 ]; then
+	T1=1
+	if [ $t == "T1" -o $t == "ALL" ]; then
+	    echo -e "$run"
+	    (>&2 echo -e "T1 weighted image series [#$numFiles, $SEQUENCENAME] (TR: $TR - short, TE: $TE - short, TI: $TI, contrast: $CO)")
+	fi
+    elif [ "${TElong}" -eq 1 -a "${TRlong}" -eq 1 ]; then
+	# flip angle should be 90 (inversion time between 1700 and 2200 is FLAIR)
+	T2=1
+	if [ $t == "T2" -o $t == "ALL" ]; then
+	    echo -e "$run"
+	    (>&2 echo -e "T2 weighted image series [#$numFiles, $SEQUENCENAME] (TR: $TR - long, TE: $TE - long, TI: $TI, contrast: $CO)")
+	fi
+    elif [ "${TRlong}" -eq 1 -a "${TEshort}" -eq 1 ]; then
+	PD=1
+	if [ $t == "PD" -o $t ==  "ALL" ]; then	
+	    echo -e "$run"
+	    (>&2 echo -e "PD weigthed image series [#$numFiles, $SEQUENCENAME] (TR: $TR - long, TE: $TE - short, TI: $TI, contrast: $CO)")
+	fi
+    fi    
+}
+
+
+# iterate over the array and export 4 folders at the same time
+i=1
+N=8
+(
+for ((j = 0; j < ${#dirs[@]}; j++))
+do
+    ((i=i%N)); ((i++==0)) && wait
+    #echo "a directory \"${dirs[$j]}\""
+    classify "${dirs[$j]}" "${numFiles[$j]}" "$t" &
+done
+)		   
+
+```
