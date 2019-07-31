@@ -7,6 +7,7 @@ There are two basic steps, reading in the data and writing the data back as a se
 #### Reading in a series of DICOM files
 
 ```
+masterdicom = '/path/to/some/DICOM/file/';
 file_list = recursive_dir(masterdicom);
 totfiles = length(file_list);
 
@@ -40,6 +41,9 @@ file_list_dicom = file_list_dicom(sortindx);
 
 %% now save that file as a series of DICOM images again
 SeriesInstanceUID = dicomuid;
+
+%% for testing purposes lets create some placeholder data to save
+data.img = zeros(256,256,192);
 
 for i =1:size(data.img,3),
   metadata = dicominfo(file_list_dicom{i});
