@@ -44,6 +44,7 @@ SeriesInstanceUID = dicomuid;
 
 %% for testing purposes lets create some placeholder data to save
 data.img = zeros(256,256,192);
+spacing = [1.0, 1.0];
 
 for i =1:size(data.img,3),
   metadata = dicominfo(file_list_dicom{i});
