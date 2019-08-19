@@ -44,6 +44,7 @@ SeriesInstanceUID = dicomuid;
 
 %% for testing purposes lets create some placeholder data to save
 data.img = zeros(256,256,192);
+output = '/tmp/';
 spacing = [1.0, 1.0];       %% size of a single pixel (mm)
 slice_location_delta = 1.0; %% distance between two image slices
 for i =1:size(data.img,3),
