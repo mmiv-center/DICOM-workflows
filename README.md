@@ -6,7 +6,7 @@ There are two basic steps, reading in the data and writing the data back as a se
 
 #### Reading in a series of DICOM files
 
-```
+```matlab
 masterdicom = '/path/to/some/DICOM/file/';
 file_list = recursive_dir(masterdicom);
 totfiles = length(file_list);
@@ -34,7 +34,7 @@ end
 
 In order to get a unique new image series we want to keep the study instance UID to have our new series be assigned to the existing study. But we want to create a new series instance UID to avoid creating a copy of our existing series. We also need to create new SOP instance UIDs, which are the identifiers that make each DICOM file unique. We will leave this to the dicomwrite.
 
-```
+```matlab
 %% sort the slices by instance number to get them into the righ order
 [dummy sortindx] = sort(instancenumbervec);
 file_list_dicom = file_list_dicom(sortindx);
@@ -69,7 +69,7 @@ end
 ```
 
 Writing out color encoded DICOM images (cannot be read by all workstations, OsiriX/Horos is fine).
-```
+```matlab
 outputdir = sprintf('%s',outdir);
 % fname = sprintf('%s/volDV_RGB.mgz',outdir);
 dicomdir = dicomsT0;
@@ -127,7 +127,8 @@ fprintf('\n%s - Finished T1 + DV\n',mfilename);
 Here is a bit that will calculate a good initial window level for the data. This is probably one of the most useful pieces of code for medical imaging. The idea is to use the proportion of body against background as a means to calculate two thresholds for setting the images brightness and contrast. This information can be added to the DICOM tags and DICOM aware display programs will be able to use this information for the initial display. If you write novel image information you should calculate this information.
 
 The calculation is parametrized by two thresholds as the proportion of low intensity pixel and the proportion of high intensity pixel. Usual values are 0.01 and 0.999. This varies by the body part and modality displayed. It is appropriate if the object of interest has intermediate intensities (not too bright such as in metal or contrast in vessels, and not too dark such as in the background).
-```
+
+```matlab
 [hc hv] = hist(T1_1_atl.imgs(find(T1_1_atl.imgs>0)),1000);
 cdf_hc = cumsum(hc/sum(hc));
 val0 = hv(min(find(cdf_hc>.99)));
@@ -135,7 +136,8 @@ im0 = max(0,min(1,T1_1_atl.imgs/val0));
 ```
 
 In order to show a map (activity, segmented region etc.) overlayed on structural data you can use a simple alpha blending procedure. A linear weighting of the overlap map (in color) onto the gray-scale structural underlay map. The result of the procedure is a color image (RGB) that can be written as a DICOM using the above procedure.
-```
+
+```matlab
 % weighting f between overlay and underlay 
 f = .6;
 volR(inds)  = colors(round(aseg_atl.imgs(inds))+1,1);
@@ -155,7 +157,7 @@ volASEG_RGB(:,:,:,3) = f*a + (1-f)*im1(:,:,:,3);
 
 Image sequences produce different contrast images. Some processing pipelines only work with a specific contrast distribution per tissue type and body region, and therefore DICOM series have to be filtered by type before processing. The problematic bit is that the sequence depends on a number of parameters and that therefore a concise description of the scanning sequences is difficult. Here an example of a dumb-method for detecting the type of the scan.
 
-```
+```bash
 #!/bin/bash
 # enter each directory (assume one series per directory and classify the data)
 
@@ -314,7 +316,6 @@ do
     classify "${dirs[$j]}" "${numFiles[$j]}" "$t" &
 done
 )		   
-
 ```
 
 ## Python stub for processing DICOM data (pydicom)
